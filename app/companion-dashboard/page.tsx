@@ -1,70 +1,28 @@
-import { CalendarDays, ClipboardList, ShieldCheck, Users } from "lucide-react";
+"use client";
+
 import PageShell from "@/components/PageShell";
 import Header from "@/components/Header";
 import Card from "@/components/Card";
-import { GhostButton } from "@/components/Buttons";
-import { nextAppointment, patient } from "@/lib/mockData";
+import AppointmentCard from "@/components/AppointmentCard";
+import TaskChecklist from "@/components/TaskChecklist";
+import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
+import { useDemo, findCompanion } from "@/lib/DemoContext";
 
 export default function CompanionDashboardPage() {
-  return (
-    <PageShell withBottomPadding={false}>
-      <Header
-        title="Companion dashboard"
-        subtitle="Priya Sharma — Verified Care Companion"
-        backHref="/"
-      />
-
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <Card>
-          <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-care-teal">
-            <CalendarDays size={13} /> Today
-          </p>
-          <p className="text-sm text-care-muted">No sessions scheduled today</p>
-        </Card>
-        <Card>
-          <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-care-teal">
-            <ClipboardList size={13} /> Upcoming
-          </p>
-          <p className="text-sm text-care-muted">1 assignment tomorrow</p>
-        </Card>
-      </div>
-
-      <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-care-text">
-        <Users size={15} className="text-care-teal" /> Assigned patients
-      </p>
-      <Card className="mb-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold text-care-text">{patient.name}</p>
-            <p className="text-sm text-care-muted">Hospital accompaniment</p>
-          </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-care-green/15 px-2.5 py-1 text-[11px] font-semibold text-care-green">
-            <ShieldCheck size={12} /> Consent: Granted
-          </span>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-lg bg-care-tint px-3 py-2">
-            <p className="text-[11px] text-care-muted">Appointment</p>
-            <p className="font-medium text-care-text">
-              {nextAppointment.date}, {nextAppointment.time}
-            </p>
-          </div>
-          <div className="rounded-lg bg-care-tint px-3 py-2">
-            <p className="text-[11px] text-care-muted">Journey tasks</p>
-            <p className="font-medium text-care-text">2 pending</p>
-          </div>
-        </div>
-        <div className="mt-3">
-          <GhostButton href="/companion-session" className="!py-2 !text-sm">
-            Open session
-          </GhostButton>
-        </div>
-      </Card>
-
-      <p className="text-center text-xs text-care-muted">
-        Companions see only what patients have consented to share — no
-        clinical information is exposed here.
-      </p>
-    </PageShell>
-  );
+  const { consentGiven, consent, selectedCompanionId, tasks, companionSessionStep } = useDemo();
+  const companion = findCompanion(selectedCompanionId);
+  const active = consentGiven && !!companion;
+  const shared = active && consent.navigationTasks ? tasks.filter((task) => task.sharedWithCaregiver) : [];
+  return <PageShell withBottomPadding={false}>
+    <Header title="Companion dashboard" subtitle={companion ? `${companion.name} · fictional demo profile` : "Fictional companion preview"} backHref="/home" />
+    <Card className="mb-5"><p className="font-semibold">{active ? "Demo consent is active" : "No active companion sharing"}</p><p className="mt-2 text-sm text-care-muted">Profiles, availability and session activity are fictional. No real booking, verification or messages.</p></Card>
+    {active && <>
+      {consent.appointmentDetails ? <AppointmentCard /> : <p className="mb-4 text-care-muted">Appointment details are not shared.</p>}
+      <h2 className="mb-3 font-serif text-xl font-bold">Shared administrative tasks</h2>
+      {shared.length ? <TaskChecklist tasks={shared} /> : <Card>No tasks shared in this scope.</Card>}
+      <p className="my-4 text-sm text-care-muted">Demo session: {companionSessionStep} of 4 steps completed.</p>
+      <PrimaryButton href="/companion-session">Open session</PrimaryButton>
+    </>}
+    <div className="mt-4"><SecondaryButton href="/consent">Manage companion consent</SecondaryButton></div>
+  </PageShell>;
 }

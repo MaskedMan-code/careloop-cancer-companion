@@ -12,6 +12,7 @@ export default function CompanionCard({
 }) {
   return (
     <Card className="animate-in">
+      <p className="mb-3 rounded-lg bg-care-tint px-3 py-2 text-sm font-semibold text-care-teal">Fictional demo profile · no real booking or verification</p>
       <div className="flex items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-care-dark text-base font-bold text-white">
           {companion.name

@@ -6,7 +6,8 @@ import { Send, Sparkles, FileText, CalendarClock, Car, Users, Bell } from "lucid
 import PageShell from "@/components/PageShell";
 import BottomNav from "@/components/BottomNav";
 import Disclaimer from "@/components/Disclaimer";
-import { nextAppointment } from "@/lib/mockData";
+import { useDemo } from "@/lib/DemoContext";
+import { DEMO_APPOINTMENT_DATE, relativeDemoDate } from "@/lib/demoCalendar";
 
 type Msg = { from: "user" | "ai"; text: string };
 
@@ -20,11 +21,12 @@ const quickInfo = [
 
 export default function CompanionPage() {
   const router = useRouter();
+  const { tasks, confirmedAppointment, caregiverSharing } = useDemo();
   const [messages, setMessages] = useState<Msg[]>([
-    { from: "user", text: "I have my appointment tomorrow. What should I do?" },
+    { from: "user", text: "How do I prepare for my appointment?" },
     {
       from: "ai",
-      text: "Your appointment is tomorrow. I can help you organize the non-clinical things you need to prepare.",
+      text: "This is a scripted demo. Open your preparation plan to review confirmed tasks and responsibilities.",
     },
   ]);
   const [thinking, setThinking] = useState(false);
@@ -49,11 +51,11 @@ export default function CompanionPage() {
       return;
     }
     if (prompt === "Show my pending tasks") {
-      respond("You have two pending items: Imaging, and Follow-up scheduling. Both will be organized once your oncology appointment is complete.");
+      respond(`Your preparation plan has ${tasks.filter((task) => !task.done).length} pending administrative tasks. Open What's next to review them. ${confirmedAppointment ? "Your confirmed source appointment is listed there." : `The fictional example appointment is ${relativeDemoDate(DEMO_APPOINTMENT_DATE).toLowerCase()}.`}`);
       return;
     }
     if (prompt === "Notify my caregiver") {
-      respond(`Sara has been notified about tomorrow's appointment and the prepared checklist.`);
+      respond(caregiverSharing.granted ? "Your selected tasks are visible in the local caregiver demo. No notification is sent." : "Demo sharing is off. Open the preparation plan and choose Share with caregiver to grant consent. No notification is sent.");
       return;
     }
   }
@@ -72,8 +74,12 @@ export default function CompanionPage() {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 space-y-2">
         <Disclaimer compact />
+        <p className="rounded-lg border border-dashed border-care-border px-3 py-1.5 text-[11px] text-care-muted">
+          Demo chat: replies here are scripted for the prototype, not live AI. The live AI
+          feature is the document reader on the Documents screen.
+        </p>
       </div>
 
       <div className="space-y-3">

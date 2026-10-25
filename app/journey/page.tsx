@@ -2,7 +2,9 @@ import PageShell from "@/components/PageShell";
 import BottomNav from "@/components/BottomNav";
 import Header from "@/components/Header";
 import JourneyTimeline from "@/components/JourneyTimeline";
+import AddedTasks from "@/components/AddedTasks";
 import { journeySteps } from "@/lib/mockData";
+import AppointmentCard from "@/components/AppointmentCard";
 
 export default function JourneyPage() {
   const completed = journeySteps.filter((s) => s.status === "completed").length;
@@ -16,6 +18,8 @@ export default function JourneyPage() {
         subtitle="One continuous timeline — nothing repeated, nothing lost."
         backHref="/home"
       />
+      <AppointmentCard />
+      <h2 className="mb-3 font-serif text-lg font-bold">Fictional care milestones</h2>
 
       <div className="mb-6">
         <div className="mb-1.5 flex items-center justify-between text-xs text-care-muted">
@@ -33,6 +37,8 @@ export default function JourneyPage() {
       </div>
 
       <JourneyTimeline steps={journeySteps} />
+
+      <AddedTasks />
 
       <BottomNav />
     </PageShell>

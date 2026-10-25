@@ -47,7 +47,7 @@ export default function EndOfLifePage() {
       </div>
 
       <p className="mb-5 text-sm text-care-muted">
-        Connect with a verified, appropriately trained end-of-life companion.
+        Explore a fictional End-of-Life Companion / Death Doula profile. No real booking or verification is provided.
       </p>
 
       <PrimaryButton href="/end-of-life/profile">Explore support</PrimaryButton>

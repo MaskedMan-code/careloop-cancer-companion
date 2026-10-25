@@ -32,6 +32,7 @@ export default function SupportPage() {
         title="Support & Safety"
         subtitle="How CareLoop, healthcare professionals and human companions each contribute."
       />
+      <Card tint className="mb-5"><p className="font-semibold">Your demo information</p><p className="mt-2 text-sm text-care-muted">Use fictional data only. Confirmed tasks, quotations and consent choices are saved in this browser until Reset Demo. Appointment text is sent to Sarvam AI only when you select Find my tasks. Browser storage does not provide secure access control or cross-device sharing.</p></Card>
 
       <div className="space-y-4">
         {groups.map((g) => (

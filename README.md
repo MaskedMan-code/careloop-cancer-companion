@@ -1,415 +1,146 @@
 # CareLoop
 
-### Continuous care, beyond the hospital.
+**Continuous care, beyond the hospital.** Health-a-thon 2026, Phase 2.
 
-**CareLoop** is a dual-mode **AI + Human Cancer Care Companion** for patients and caregivers, built for **Health-a-thon 2026** by Koita Foundation, KCDH-IIT Bombay and National Cancer Grid.
+CareLoop helps a cancer patient's caregiver prepare for the next appointment: fictional instructions → Sarvam administrative extraction → review and edit → explicit confirmation → one preparation plan → scoped caregiver sharing.
 
-Cancer care is a continuous journey, but support is often fragmented across appointments, documents, hospital processes, caregivers and home. CareLoop creates **one shared journey** where an AI companion helps with non-clinical navigation and coordination, while verified human companions can step in when a patient needs physical, practical or emotional support.
+**Fictional information only. No diagnosis, medical interpretation, treatment advice, medication advice, clinical urgency assessment or risk scoring.**
 
-> **AI when you need guidance. Human when you need presence.**
+## MVP status
 
----
+Implemented in the existing Next.js 15 / React 18 / TypeScript application:
 
-## 🚀 Live Demo
+- The existing Sarvam provider, structured output, English/Hindi grounding and deterministic safety checks are preserved. Nothing silently substitutes mock AI results.
+- Proposals remain separate from confirmed tasks. Review includes wording, due wording/date, assignment, removal and opt-in suggestions. Confirmation is explicit.
+- A single task collection powers What's Next, Journey and permitted caregiver/companion previews. Tasks retain IDs, provenance, confirmation, status, original quotation, category, assignee, optional due wording, sharing selection and creation/update timestamps.
+- Completion updates the same task everywhere. Confirming the same normalized title + due wording again is deduplicated, including after reload. A task for a different date can be added separately.
+- Caregiver consent has grant/revoke, appointment/task scope and individual task selection. New tasks are private by default; assignment alone never shares them. Companion consent is a separate grant, using the same individual support-team task selection.
+- Confirmed tasks, completion, role, consent, source appointment facts and companion progress survive reload using schema-validated, versioned `careloop.demo.v2` localStorage. Invalid/old data resets safely. **Reset Demo** restores fictional defaults and affects only CareLoop's storage key.
+- Fixed fictional today: **25 October 2026**; seeded next appointment: **26 October 2026, 10:30 AM**. The calendar never depends on the device clock or timezone. Examples, milestones, seed due dates and fictional availability use it.
+- Source appointment facts require their own checkbox during confirmation. They retain the actual extracted date/text; unknown fields remain unknown. Seeded milestones and seed tasks remain explicitly fictional examples, even when a source appointment differs. Unstructured source dates are not automatically converted to ISO dates or given potentially misleading relative labels.
+- A wider responsive layout, clear task states, prominent preparation actions, source quotations, success/error states, accessible controls, reduced-motion support, browser-storage feedback, and print/save-to-PDF action.
+- Hospital Companion, Cancer Care Navigator, Family / Practical Support and **End-of-Life Companion / Death Doula** remain available. Fictional profiles and availability no longer claim real verification. Companion sessions retain their consent flow and persist progress.
+- Public AI requests require a private judge code and an atomic Redis quota. Missing/misconfigured protection or unavailable Redis fails closed.
 
-**Prototype:**  
-https://careloop-cancer-companion.vercel.app/
+See [implementation files and validation notes](docs/phase2-delivery.md) for the exact change list and test results.
 
-**GitHub Repository:**  
-https://github.com/MaskedMan-code/careloop-cancer-companion
+## What remains simulated or limited
 
----
+- This is a **single-browser fictional prototype**. Local consent filters are a UI demonstration, not secure patient-data access control. There is no identity verification, secure backend, account system, cross-device sync, multi-user synchronization, notifications or messaging.
+- Confirmed task wording, source quotations, appointment facts and preferences are stored unencrypted in that browser. Raw pasted input, unconfirmed proposals and the judge code are not persisted. Never enter real patient information. Reset Demo removes modified demo progress.
+- AI Companion chat is explicitly **scripted demo chat**. It reports current local task counts but makes no model calls. The genuine AI feature is Documents → Find my tasks.
+- Simulated document buttons add prewritten screen-local previews only. They do not extract tasks, change milestones or persist on reload.
+- Human profiles, requests, availability, consent, sessions and after-support activity are fictional. There are no real bookings, service-provider checks, hospital integrations or payments.
+- Clinical guards are conservative English/Hindi text rules, not clinical safety validation. They may over-filter or miss paraphrases and have not had clinician review. CareLoop never infers missing appointments or medical instructions.
+- Text submitted for extraction goes to Sarvam, a third party. No patient-data governance, retention contract, compliance assessment or production security audit is provided.
+- Live Sarvam calls and a real Upstash deployment were **not exercised in this sprint**. Offline tests mock provider/quota responses; browser happy paths intercept the API. Real extraction quality, credits, deployed quota execution and Vercel configuration require an approved live check. Do not describe the public deployment as security-verified.
+- One shared judge code is a simple paid-demo gate, not per-user authentication. All judges share the budget. Anyone with the code can consume that budget; rotate it if disclosed. There is no per-person audit trail.
+- Browser tests use installed Chrome at 390×844 and 1440×1000. Other browsers, real devices, screen readers and formal accessibility audits are not verified.
 
-## 💡 What is CareLoop?
+## Run locally
 
-CareLoop is designed around one simple principle:
+Use Node.js 22.12+ on the 22.x LTS line, or Node 24 LTS, and npm. Node 24 was used for this sprint; the updated test runner requires these supported Node versions. On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
-> **One patient journey. Multiple forms of support.**
+```powershell
+npm.cmd ci
+# Keep your existing .env.local. Edit it yourself only if configuration is needed.
+# For an explicitly local loopback demo, enable this for the current shell:
+$env:CARELOOP_LOCAL_DEMO = "1"
+npm.cmd run dev
+```
 
-Instead of making patients repeatedly explain their situation to different people and systems, CareLoop keeps a shared journey that can be accessed by the patient, caregiver and appropriate support companions with patient consent.
+Open `http://localhost:3000`. Server-side `SARVAM_API_KEY` must already be configured for genuine extraction. A fresh setup may copy the placeholder `.env.example` only if `.env.local` does not exist. Never overwrite an existing credential file.
 
-### AI Care Companion
+For production-mode local preview: `npm.cmd run build`, then `npm.cmd start`. Normal Next.js development/build/start loads your configured environment files. QA can avoid opening private environment files by setting `$env:NODE_OPTIONS = '--require ./scripts/no-env-files.cjs'` and `$env:SARVAM_API_KEY = ''` for the QA subprocess. **Remove that QA-only NODE_OPTIONS setting before normal development or deployment.**
 
-The AI companion provides always-available, **non-clinical** support for:
+## Environment variables
 
-- appointment and task organization
-- document and instruction organization
-- reminders and checklists
-- “What's next?” guidance
-- multilingual communication
-- caregiver coordination
-- preparation for healthcare visits
-- navigation through non-clinical hospital processes
+All variables below are **server-only**. Never use a `NEXT_PUBLIC_` prefix for them or put secrets in source, logs or client JavaScript. `.env.example` has blank secret placeholders.
 
-### Human Companion Network
+| Variable | Purpose |
+|---|---|
+| `SARVAM_API_KEY` | Sarvam subscription key; required for real extraction. |
+| `SARVAM_MODEL` | Optional; default `sarvam-105b`; also allows `sarvam-105b-conversations`. |
+| `CARELOOP_LOCAL_DEMO` | Set to `1` only for explicit loopback development. Ignored when `VERCEL` is set and on non-loopback request URLs. Never enable on a public self-hosted server. |
+| `CARELOOP_DEMO_ACCESS_CODE` | Required for public/preview AI access: generate a random 32–256-character code, store server-side, and privately give it to judges. No public default exists. |
+| `UPSTASH_REDIS_REST_URL` | Public mode requires an HTTPS Upstash Redis REST URL such as the placeholder `https://your-database.upstash.io`. |
+| `UPSTASH_REDIS_REST_TOKEN` | Public mode requires its read/write Redis REST token; never give this to judges. |
+| `CARELOOP_AI_DAILY_LIMIT` | Optional; default 100 aggregate accepted attempts per UTC day; integer 1–1000. |
 
-When digital support is not enough, CareLoop can connect patients with verified human companions such as:
+The judge types their code into the masked Documents field. It travels in `X-CareLoop-Access-Code` and stays only in screen memory. Code comparison uses SHA-256 digests and constant-time comparison. Public requests with a missing/incorrect code return 401; missing/weak access configuration or failed quota protection returns 503. The UI shows AI unavailable, without fabricated extraction.
 
-- **Hospital Companion**
-- **Cancer Care Navigator**
-- **Family / Practical Support**
-- **End-of-Life Companion / Death Doula**
+## Public AI protection and required infrastructure
 
-### End-of-Life / Death Doula
+Provision a dedicated **Upstash Redis database** and set its REST URL/read-write token on the existing Vercel project. The implementation uses the [Upstash Redis REST API](https://upstash.com/docs/redis/features/restapi) and [atomic Lua EVAL](https://upstash.com/docs/redis/sdks/ts/commands/scripts/eval); no Redis npm dependency is required.
 
-CareLoop includes a dedicated pathway for appropriately trained, verified, **non-clinical end-of-life companions / death doulas**.
+One EVAL checks/increments **both** shared counters atomically before any Sarvam call:
 
-Support may include:
+- 10 accepted attempts in a 60-second window starting at its first hit.
+- The configured aggregate daily budget, keyed by UTC calendar day.
 
-- companionship and presence
-- practical support
-- psychosocial / emotional support
-- resource navigation
-- family support during end-of-life
+All serverless instances and judges share `careloop:{ai}:minute` and `careloop:{ai}:day:YYYY-MM-DD`. These keys contain no source text, code or IP address. Rotating the judge code does not reset quotas. Use one dedicated database for the intended shared budget; environments pointing to the same database intentionally share it. Do not manually clear keys to bypass budget enforcement.
 
-Death doulas complement clinical care. They do not replace doctors, nurses, palliative-care teams or hospice services.
+Requests consume quota even if Sarvam later fails or a deterministic safety check handles the text. Failed authorization/validation does not consume paid-request quota. Minute-key TTL is 60 seconds; daily keys expire after 48 hours. Redis errors, invalid responses and a 3-second timeout fail closed. Local bypass uses only an in-process courtesy limiter and is not a public security control.
 
----
+The route rejects unexpected request structure, empty or >4,000-character input, non-JSON and cross-origin browser submissions. Streaming body reads are capped at 25,000 bytes and 5 seconds. Sarvam output is capped at 2,500 tokens; its 45-second timeout includes response-body parsing. Route `maxDuration` is 60 seconds. Use a Vercel plan/function configuration that supports that duration. No permissive CORS is provided; authentication is still mandatory for non-browser requests.
 
-## 🔄 The Core Differentiator
+## Test and build
 
-The AI companion and human companion are **not separate products**.
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run build
+npm.cmd run test:e2e
+```
 
-They share the **same CareLoop journey**.
+Run typecheck **after** the build finishes, not concurrently: Next rewrites `.next/types`. Vitest does not load `.env.local`; offline provider tests use fictional inputs and mocked responses. No Sarvam credits are used by these tests.
 
-```text
-Patient / Caregiver
-        │
-        ▼
-  CARELOOP JOURNEY
-        │
-   ┌────┴────┐
-   ▼         ▼
- AI        HUMAN
-Companion  Companion
-   │         │
-   └────┬────┘
-        ▼
- Healthcare Team
+Playwright is now a project dev dependency. The default browser is installed Google Chrome. Alternatively install Chromium with `npx playwright install chromium` and set `$env:PLAYWRIGHT_CHANNEL = 'chromium'`. E2E starts its own production server on loopback port 3411, forces the Sarvam key empty, and disables private env-file loading. Do not run a different server on that port. `python e2e/regression.py` is a compatibility wrapper for this maintained suite.
 
-For example:
+Browser evidence is in `test-results/`; the HTML report is in `playwright-report/`. Both are excluded from the source ZIP and Git.
 
-“I need someone with me.”
+The paid live suite remains separate: `test:live` requires `RUN_LIVE_TESTS=1` and an operator-supplied server key. **Obtain approval before any paid live test.** Do not use it for routine regression. Historical evaluation notes are in [AI evaluation](docs/ai-evaluation.md); this sprint's current evidence is in [delivery notes](docs/phase2-delivery.md).
 
-With patient consent, a human companion can join the same CareLoop journey.
+## Judge demonstration
 
-The patient does not have to start over or repeat everything.
+1. Open Home → Read my appointment text → use a fictional English/Hindi sample.
+2. On a public deployment, enter the private judge code. Select Find my tasks for a genuine Sarvam request.
+3. Review stated facts, optional suggestions and missing information. Edit task wording/due wording/assignee, untick or remove unwanted proposals.
+4. Optionally check Use these source appointment details. Confirm selected tasks. Nothing becomes complete automatically.
+5. Open What's Next and Journey. Review original quotations and responsibilities; seeded milestones remain separate.
+6. Choose individual tasks for caregiver sharing → Share with caregiver → choose scope → Give consent & continue.
+7. View caregiver checklist, complete a task, revisit What's Next/Journey, and refresh. The same task status persists.
+8. Revoke sharing to hide shared tasks/details. Reset Demo restores the fictional starting point.
+9. Need someone to help → Hospital Companion, or **End-of-Life Companion / Death Doula** → Explore support → Request companion → demo consent → shared journey/session.
 
-Nothing is repeated or lost.
+## Push to the existing GitHub repository (operator action)
 
-🧭 Example Patient Journey
+This supplied folder has **no `.git` repository**, so no working branch could be created here. Nothing was committed or pushed.
 
-The prototype uses a fictional patient:
+1. Clone your existing GitHub repository into a separate review folder. Do not replace or delete this local source of truth.
+2. In that clone run `git switch -c careloop/phase2-fixed`.
+3. Extract `careloop-phase2-fixed.zip` into that clone. The ZIP contains source only, no `.git` or private env files. Review all differences against the older repository.
+4. Run the checks above. Verify `git check-ignore .env.local` and inspect `git status --short`; never add secrets or generated files.
+5. Stage only the source files listed in [delivery notes](docs/phase2-delivery.md), review `git diff --cached`, and commit with `git commit -m "Connect caregiver preparation workflow and protect demo AI"`.
+6. After your approval, run `git push -u origin careloop/phase2-fixed` and open a PR against the existing default branch. Do not force-push unrelated history.
 
-Ayesha Khan
-Age: 52
-
-Caregiver:
-
-Sara Khan
-
-Completed
-Registration
-Biopsy
-Pathology received
-Current
-Oncology appointment
-Next
-Prepare requested documents
-Confirm appointment
-Arrange transport
-Notify caregiver
-Pending
-Imaging
-Follow-up scheduling
-
-The prototype intentionally keeps this journey non-clinical. It does not interpret pathology or make treatment decisions.
+## Update the existing Vercel project (operator action)
 
-🖥️ Prototype Walkthrough
+1. Open the **existing** Vercel project. Keep its linked repository and root directory; do not create another application/project.
+2. Set the server variables above for the intended Preview/Production environments. Provision Redis and privately distribute a newly generated judge code. Do not set `CARELOOP_LOCAL_DEMO=1` for public use. Do not paste any secret into this chat.
+3. Deploy the approved branch to Preview through the existing project. Verify missing/wrong-code rejection, quota failure behavior and the UI before granting paid test approval.
+4. With explicit approval for a small number of paid calls, test genuine English and Hindi extraction on fictional text, then the full confirmation/sharing/reload/companion flow. Verify Redis counters and limit enforcement in that environment. Mocked tests do not establish deployed security.
+5. Only after approval, merge/promote using the existing project's deployment workflow. Environment changes require a new deployment. Keep the previous deployment available for rollback.
 
-The prototype demonstrates the complete CareLoop workflow.
+No push or deployment was performed. Local `.env.local` was not modified and no credential values were printed.
 
-Recommended demo
-Welcome → Continue as Patient
-Home → Open “What's Next?”
-Review the appointment preparation checklist
-Select “Need someone to help”
-Choose Hospital Companion
-View a companion profile
-Request a companion
-Review the Consent screen
-Select the information to share
-Open the Shared CareLoop Journey
-Complete the companion session
-See the journey update
-Death-doula pathway
-Home
-→ What's Next?
-→ Need someone to help
-→ End-of-Life Companion / Death Doula
-→ Explore support
-→ Companion profile
-Caregiver pathway
-Welcome
-→ Continue as Caregiver
-
-or access the caregiver view from the patient journey.
-
-Companion dashboard
-
-The prototype also includes a companion-side dashboard showing assigned journeys, tasks and consent status.
-
-🧠 AI Companion
-
-The prototype demonstrates how fragmented, non-clinical information can be turned into clear next actions.
-
-Documents
-Instructions
-Appointments
-Care tasks
-       ↓
-AI Journey Engine
-       ↓
-Completed | Current | Next | Pending
-       ↓
-Reminders
-Checklists
-Translation
-Caregiver coordination
-       ↓
-“What’s next?”
-Example
-
-Oncology appointment tomorrow
-
-CareLoop can help the patient:
-
-prepare requested documents
-confirm the appointment
-arrange transport
-notify the caregiver
-
-It does not diagnose or recommend treatment.
-
-👥 Human Companion Network
-
-Some problems cannot be solved by software.
-
-CareLoop can support different kinds of non-clinical companions:
-
-Companion	Purpose
-Hospital Companion	Hospital accompaniment and navigation
-Cancer Care Navigator	Practical coordination across the journey
-Family / Practical Support	Everyday coordination and caregiver support
-End-of-Life Companion / Death Doula	Non-clinical companionship and family support during end-of-life
-
-Companions are intended to be verified and appropriately trained for their non-clinical role.
-
-Clinical decisions remain with healthcare professionals.
-
-🔐 Consent & Privacy
-
-CareLoop is designed around patient-controlled information sharing.
-
-Before a human companion joins the journey, the patient can choose what information to share.
-
-The prototype demonstrates:
-
-explicit consent before sharing
-role-based access
-limited information sharing
-consent status within the shared journey
-audit-oriented architecture for future implementation
-
-Example:
-
-Share your CareLoop journey?
-
-☑ Appointment details
-☑ Navigation tasks
-☐ Other documents
-
-[ Give consent & continue ]
-
-Only the information the patient chooses to share should be visible to the companion.
-
-🩺 Clinical Safety Boundary
-
-CareLoop is an assistive, non-clinical workflow solution.
-
-AI handles
-Organization
-Navigation
-Communication
-Reminders
-Coordination
-Human companions handle
-Presence
-Practical support
-Hospital navigation
-Non-clinical companionship
-Family support
-End-of-life companionship
-Healthcare professionals handle
-Diagnosis
-Treatment
-Clinical decisions
-
-CareLoop does not:
-
-diagnose
-recommend treatment
-interpret medical results for clinical decisions
-perform clinical risk scoring
-provide autonomous clinical advice
-replace doctors, nurses, palliative-care teams or hospice
-🛠️ Technology
-
-The current prototype is built with:
-
-Next.js 14 — App Router
-React 18
-TypeScript
-Tailwind CSS
-lucide-react for icons
-Prototype data
-
-The current prototype uses local fictional mock data.
+## Source export
 
-There are:
+Run `python scripts/export-source.py` to create **careloop-phase2-fixed.zip**. The exporter uses a source allow-list and excludes `node_modules`, `.next`, Git metadata, private environment files, generated reports, credential file extensions and nested ZIPs. Only the blank `.env.example` template is included.
 
-no real patient records
-no real healthcare API integrations
-no real payments
-no real background-check integrations
-no clinical decision-making
+## Dependency security status
 
-The data model is separated from the UI so that the prototype can later be connected to a backend such as Supabase/PostgreSQL without restructuring the product experience.
+The sprint updated Zod to 4.6.7, Vitest to 5.0.5, PostCSS to 8.5.31 and Node type declarations to the 24.x line. A scoped npm override makes Next use the fixed PostCSS 8 release; the Next.js 15 and Tailwind 3 major versions are preserved. The lockfile records these versions.
 
-/lib/mockData.ts
-/lib/types.ts
-/lib/DemoContext.tsx
-📁 Project Structure
-app/
-├── page.tsx                      # Welcome / role selection
-├── home/                         # Patient home
-├── journey/                      # Care journey timeline
-├── whats-next/                   # “What's next?” interaction
-├── documents/                    # Document / instruction organization
-├── companion/                    # AI Care Companion
-├── caregiver/                    # Caregiver mode
-├── human-companion/              # Human support selection
-├── end-of-life/                  # End-of-life pathway
-├── consent/                      # Consent handoff
-├── shared-journey/               # Shared journey view
-├── companion-session/            # Companion session
-├── after-support/                # Journey update
-├── support/                      # Safety boundary
-├── companion-dashboard/          # Companion-side dashboard
-└── end/                          # Demo summary
-
-components/
-└── Reusable UI components
-
-lib/
-├── mockData.ts
-├── types.ts
-└── DemoContext.tsx
-♿ Accessibility
-
-The prototype includes:
-
-large touch targets for primary actions
-visible :focus-visible states
-semantic headings
-labelled interactive controls
-readable contrast
-responsive layouts
-🧪 Pilot & Future Direction
-
-CareLoop is currently a prototype.
-
-A future pilot could begin in one cancer-care setting with a small patient/caregiver cohort and be co-designed with:
-
-practising doctors
-nurses
-patients
-caregivers
-palliative-care professionals
-end-of-life professionals
-human care companions
-
-Potential measures to validate include:
-
-ability to identify the next step
-patient preparedness
-caregiver coordination burden
-missed or incomplete navigation tasks
-successful human-support connections
-continuity across care transitions
-
-These are proposed measures to validate, not claimed results.
-
-📚 Evidence & Design Rationale
-
-The CareLoop concept is informed by literature on end-of-life companionship and death-doula roles.
-
-The supporting research describes roles including companionship, practical support, psychosocial/emotional support and resource navigation, while also noting that the evidence base for clinical outcomes remains limited.
-
-The prototype therefore focuses on the non-clinical support role and does not claim that death doulas improve survival or reduce mortality.
-
-Any research statistics used in the accompanying Health-a-thon pitch deck are presented as contextual evidence and not as evidence of CareLoop's effectiveness.
-
-🎯 Health-a-thon 2026
-
-CareLoop was created for Health-a-thon 2026 by Koita Foundation, KCDH-IIT Bombay and National Cancer Grid.
-
-The prototype focuses on the hackathon's assistive, non-clinical, operational and workflow direction.
-
-The core idea
-
-AI when you need guidance.
-Human when you need presence.
-
-The final principle
-
-CareLoop does not replace the care team. It makes the journey around the care team easier to navigate.
-
-Because...
-
-Nobody should have to navigate cancer alone.
-
-▶️ Run Locally
-
-Clone the repository:
-
-git clone https://github.com/MaskedMan-code/careloop-cancer-companion.git
-cd careloop-cancer-companion
-
-Install dependencies:
-
-npm install
-
-Start the development server:
-
-npm run dev
-
-Open:
-
-http://localhost:3000
-
-For a production build:
-
-npm run build
-npm run start
-📌 Prototype Status
-
-Status: Health-a-thon 2026 prototype
-
-Data: Fictional / mock
-
-Clinical use: Not for clinical decision-making
-
-Live demo: https://careloop-cancer-companion.vercel.app/
-
-Repository: https://github.com/MaskedMan-code/careloop-cancer-companion
+The final advisory check and remaining findings are recorded in [delivery notes](docs/phase2-delivery.md). npm audit data changes over time. Remaining Tailwind selector-parser findings concern build-time CSS tooling; this application does not accept user CSS. They are still tracked limitations, not a production-security assurance. No `npm audit fix --force` or framework-major migration was performed.

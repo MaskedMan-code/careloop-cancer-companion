@@ -16,14 +16,15 @@ const steps = [
 ];
 
 export default function CompanionSessionPage() {
-  const { companionSessionStep, advanceCompanionSession } = useDemo();
+  const { companionSessionStep, advanceCompanionSession, consentGiven, consent, confirmedAppointment } = useDemo();
   const finished = companionSessionStep >= steps.length;
+  if (!consentGiven) return <PageShell withBottomPadding={false}><Header title="Companion session" backHref="/human-companion" /><Card>Companion sharing is off. Grant demo consent to open a fictional session.</Card><div className="mt-4"><PrimaryButton href="/consent">Manage consent</PrimaryButton></div></PageShell>;
 
   return (
     <PageShell withBottomPadding={false}>
       <Header
         title="Companion session"
-        subtitle={`${patient.name.split(" ")[0]}'s ${nextAppointment.title.toLowerCase()}`}
+        subtitle={consent.appointmentDetails ? `Fictional session · ${confirmedAppointment?.title?.value ?? "Appointment support"}` : "Fictional session · appointment details not shared"}
         backHref="/shared-journey"
       />
 

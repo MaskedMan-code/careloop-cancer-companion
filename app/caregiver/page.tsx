@@ -1,62 +1,29 @@
 "use client";
 
-import { CalendarClock, Car, FileText, ShieldCheck } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import Header from "@/components/Header";
 import Card from "@/components/Card";
 import TaskChecklist from "@/components/TaskChecklist";
+import AppointmentCard from "@/components/AppointmentCard";
+import BottomNav from "@/components/BottomNav";
+import { SecondaryButton } from "@/components/Buttons";
 import { useDemo } from "@/lib/DemoContext";
-import { caregiver, nextAppointment, patient } from "@/lib/mockData";
+import { caregiver, patient } from "@/lib/mockData";
 
 export default function CaregiverPage() {
-  const { caregiverTasks, toggleCaregiverTask } = useDemo();
-
-  return (
-    <PageShell withBottomPadding={false}>
-      <Header
-        title={`${patient.name.split(" ")[0]}'s Care Journey`}
-        subtitle={`Caregiver view — ${caregiver.name}`}
-        backHref="/"
-      />
-
-      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-care-green/15 px-3 py-1.5 text-xs font-semibold text-care-green">
-        <ShieldCheck size={14} /> Shared with your consent.
-      </div>
-
-      <Card tint className="mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-care-teal">
-          Next appointment
-        </p>
-        <p className="mt-1 flex items-center gap-2 font-semibold text-care-text">
-          <CalendarClock size={15} /> {nextAppointment.title} — {nextAppointment.date},{" "}
-          {nextAppointment.time}
-        </p>
-        <p className="mt-1 text-sm text-care-muted">
-          {nextAppointment.hospital}, {nextAppointment.location}
-        </p>
-      </Card>
-
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <Card>
-          <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-care-text">
-            <FileText size={14} className="text-care-teal" /> Shared documents
-          </p>
-          <p className="text-sm text-care-muted">Pathology report copy, appointment slip</p>
-        </Card>
-        <Card>
-          <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-care-text">
-            <Car size={14} className="text-care-teal" /> Transport
-          </p>
-          <p className="text-sm text-care-muted">Not yet arranged</p>
-        </Card>
-      </div>
-
-      <p className="mb-2 text-sm font-bold text-care-text">Tasks for Sara</p>
-      <TaskChecklist tasks={caregiverTasks} onToggle={toggleCaregiverTask} />
-
-      <p className="mt-6 text-center text-xs text-care-muted">
-        Sara can only see the journey information Ayesha has chosen to share.
-      </p>
-    </PageShell>
-  );
+  const { caregiverTasks, toggleCaregiverTask, caregiverSharing } = useDemo();
+  const pending = caregiverTasks.filter((task) => !task.done);
+  const completed = caregiverTasks.filter((task) => task.done);
+  const assigned = pending.filter((task) => task.assignedTo === "caregiver");
+  return <PageShell>
+    <Header title={`${patient.name.split(" ")[0]}'s Care Journey`} subtitle={`Caregiver demo · ${caregiver.name}`} backHref="/home" />
+    <p role="status" className="mb-4 rounded-xl border border-care-border bg-care-tint p-3 text-sm font-semibold text-care-teal">{caregiverSharing.granted ? "Demo sharing is active. Only selected tasks and permitted details appear." : "Sharing is off. No appointment or tasks are shared."}</p>
+    <AppointmentCard caregiver />
+    <div className="mb-6 grid grid-cols-3 gap-3">{[["Pending", pending.length], ["Completed", completed.length], ["Assigned to Sara", assigned.length]].map(([label, count]) => <Card key={label}><p className="text-2xl font-bold text-care-teal">{count}</p><p className="mt-1 text-sm text-care-muted">{label}</p></Card>)}</div>
+    <h2 className="mb-3 font-serif text-xl font-bold">Shared preparation checklist</h2>
+    {caregiverTasks.length ? <TaskChecklist tasks={[...pending, ...completed]} onToggle={toggleCaregiverTask} /> : <Card><p className="font-semibold">No shared tasks yet</p><p className="mt-2 text-sm text-care-muted">The patient can choose tasks in What&rsquo;s next, then grant demo sharing. Assigning a task alone does not share it.</p></Card>}
+    <div className="mt-5"><SecondaryButton href="/consent?target=caregiver">Manage demo sharing as patient</SecondaryButton></div>
+    <p className="mt-5 text-sm text-care-muted">This is a single-browser demonstration. Secure privacy enforcement and true multi-user synchronization require a backend. Nothing is sent to Sara.</p>
+    <BottomNav />
+  </PageShell>;
 }

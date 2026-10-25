@@ -1,16 +1,17 @@
+"use client";
+
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import Header from "@/components/Header";
 import Card from "@/components/Card";
 import { PrimaryButton } from "@/components/Buttons";
+import { useDemo } from "@/lib/DemoContext";
 
-const rows = [
-  { label: "Hospital visit", status: "Completed" },
-  { label: "Caregiver notified", status: "Completed" },
-  { label: "Companion session", status: "Completed" },
-];
+
 
 export default function AfterSupportPage() {
+  const { companionSessionStep } = useDemo();
+  const rows = [{ label: "Fictional companion session", status: companionSessionStep === 4 ? "Completed in demo" : "In progress" }, { label: "Caregiver notification", status: "Not sent (demo)" }];
   return (
     <PageShell withBottomPadding={false}>
       <Header title="Journey updated" backHref="/companion-session" />
@@ -33,7 +34,7 @@ export default function AfterSupportPage() {
         <p className="flex items-center gap-2 text-sm font-semibold text-care-teal">
           <ArrowRight size={15} /> Next
         </p>
-        <p className="mt-1 text-care-text">Follow-up appointment</p>
+        <p className="mt-1 text-care-text">Follow-up scheduling (date unknown)</p>
       </Card>
 
       <div className="rounded-xl bg-care-dark px-4 py-4 text-center font-serif text-base italic text-white">

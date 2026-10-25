@@ -40,7 +40,7 @@ export default function HumanCompanionPage() {
       </div>
 
       <p className="mt-6 text-center text-xs text-care-muted">
-        All companions are verified and appropriately trained. None provide
+        All profiles are fictional examples. No verification, real availability or booking is provided. Companions do not provide
         medical qualifications unless explicitly shown.
       </p>
     </PageShell>

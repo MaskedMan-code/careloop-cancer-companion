@@ -8,6 +8,19 @@ body {
   overflow-x: hidden;
 }
 
+button, input, textarea, select { font: inherit; }
+button, a, summary, select { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+select { min-height: 44px; }
+main { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media print {
+  nav, aside, button, select { display: none !important; }
+  body, main { background: white !important; color: black !important; }
+}
+
 body {
   color: #16302e;
   background: #ffffff;

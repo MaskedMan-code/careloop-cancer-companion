@@ -8,6 +8,7 @@ import type {
   Patient,
   Task,
 } from "./types";
+import { DEMO_APPOINTMENT_LABEL, DEMO_CREATED_AT, DEMO_TODAY, formatDemoDate } from "./demoCalendar";
 
 // All data below is fictional and for demonstration purposes only.
 
@@ -25,7 +26,7 @@ export const caregiver: Caregiver = {
 export const nextAppointment: Appointment = {
   id: "appt-onco-1",
   title: "Oncology appointment",
-  date: "24 Sept",
+  date: DEMO_APPOINTMENT_LABEL,
   time: "10:30 AM",
   hospital: "Sunrise Cancer Institute",
   location: "Oncology OPD, 2nd Floor",
@@ -36,7 +37,7 @@ export const journeySteps: JourneyStep[] = [
     id: "registration",
     label: "Registration",
     status: "completed",
-    date: "2 Sept",
+    date: formatDemoDate("2026-10-02"),
     location: "Sunrise Cancer Institute",
     detail: "Patient registered with the care team.",
   },
@@ -44,7 +45,7 @@ export const journeySteps: JourneyStep[] = [
     id: "biopsy",
     label: "Biopsy",
     status: "completed",
-    date: "9 Sept",
+    date: formatDemoDate("2026-10-09"),
     location: "Sunrise Cancer Institute",
     detail: "Sample collection completed.",
   },
@@ -52,7 +53,7 @@ export const journeySteps: JourneyStep[] = [
     id: "pathology",
     label: "Pathology report received",
     status: "completed",
-    date: "16 Sept",
+    date: formatDemoDate("2026-10-16"),
     location: "Pathology Department",
     detail: "Report received and shared with your care team.",
     documents: ["Pathology report (shared with care team)"],
@@ -61,7 +62,7 @@ export const journeySteps: JourneyStep[] = [
     id: "oncology-appt",
     label: "Oncology appointment",
     status: "current",
-    date: "24 Sept",
+    date: DEMO_APPOINTMENT_LABEL,
     location: "Oncology OPD, 2nd Floor",
     detail: "Discussion with your oncology team about next steps.",
     documents: ["Appointment slip", "Pathology report copy"],
@@ -81,24 +82,18 @@ export const journeySteps: JourneyStep[] = [
 ];
 
 export const todayTasks: Task[] = [
-  { id: "t1", label: "Confirm appointment", done: false },
-  { id: "t2", label: "Prepare requested documents", done: false },
-  { id: "t3", label: "Arrange transport", done: false },
-  { id: "t4", label: "Notify caregiver", done: false },
-];
-
-export const caregiverTasks: Task[] = [
-  { id: "c1", label: "Confirm transport", done: false },
-  { id: "c2", label: "Carry pathology document", done: false },
-  { id: "c3", label: "Attend oncology appointment", done: false },
-];
+  { id: "t1", label: "Confirm appointment", category: "appointment" },
+  { id: "t2", label: "Prepare requested documents", category: "documents" },
+  { id: "t3", label: "Arrange transport", category: "transport" },
+  { id: "t4", label: "Notify caregiver", category: "caregiver" },
+].map((t) => ({ ...t, done: false, status: "pending", source: "seed", origin: "demo", confirmationStatus: "confirmed", assignedTo: "patient", sharedWithCaregiver: false, dueText: DEMO_APPOINTMENT_LABEL, createdAt: DEMO_CREATED_AT, updatedAt: DEMO_CREATED_AT }));
 
 export const documents: DocumentItem[] = [
   {
     id: "doc1",
     type: "Appointment slip",
     title: "Oncology appointment",
-    date: "24 Sept",
+    date: DEMO_APPOINTMENT_LABEL,
     location: "Oncology OPD",
     action: "Attend appointment",
     preparation: "Carry requested documents",
@@ -116,49 +111,49 @@ export const companions: Companion[] = [
   {
     id: "priya-sharma",
     name: "Priya Sharma",
-    role: "Verified Care Companion",
+    role: "Care Companion",
     type: "hospital",
-    verified: true,
-    trained: true,
+    verified: false,
+    trained: false,
     languages: ["Hindi", "English"],
     experience: "Hospital accompaniment",
-    availability: "Tomorrow, 9:00 AM",
+    availability: `${DEMO_APPOINTMENT_LABEL}, 9:00 AM (fictional)`,
     services: ["Hospital navigation", "Accompaniment"],
   },
   {
     id: "arjun-mehta",
     name: "Arjun Mehta",
-    role: "Verified Cancer Care Navigator",
+    role: "Cancer Care Navigator",
     type: "navigator",
-    verified: true,
-    trained: true,
+    verified: false,
+    trained: false,
     languages: ["English", "Marathi"],
     experience: "Care coordination across departments",
-    availability: "Today, 4:00 PM",
+    availability: `${formatDemoDate(DEMO_TODAY)}, 4:00 PM (fictional)`,
     services: ["Journey coordination", "Appointment navigation"],
   },
   {
     id: "fatima-noor",
     name: "Fatima Noor",
-    role: "Verified Practical Support Companion",
+    role: "Practical Support Companion",
     type: "family",
-    verified: true,
-    trained: true,
+    verified: false,
+    trained: false,
     languages: ["Hindi", "Urdu", "English"],
     experience: "Family and practical coordination",
-    availability: "Tomorrow, 11:00 AM",
+    availability: `${DEMO_APPOINTMENT_LABEL}, 9:00 AM (fictional)`,
     services: ["Errands & logistics", "Family coordination"],
   },
   {
     id: "meera-rao",
     name: "Meera Rao",
-    role: "Verified End-of-Life Companion",
+    role: "End-of-Life Companion / Death Doula",
     type: "eol",
-    verified: true,
-    trained: true,
+    verified: false,
+    trained: false,
     languages: ["Hindi", "English"],
     experience: "Non-clinical end-of-life support",
-    availability: "Available today",
+    availability: `${formatDemoDate(DEMO_TODAY)} (fictional)`,
     services: [
       "Companionship",
       "Practical family support",

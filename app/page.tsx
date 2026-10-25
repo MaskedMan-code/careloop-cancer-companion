@@ -49,7 +49,7 @@ export default function WelcomePage() {
 
         <p className="pt-3 text-center text-[11px] text-care-tint2/70">
           This is a non-clinical navigation prototype using fictional demo
-          data only.
+          data only. Switching modes is not identity verification. Demo progress is saved only in this browser.
         </p>
         <p className="text-center text-[11px]">
           <a href="/companion-dashboard" className="underline text-care-tint2/70">

@@ -6,34 +6,36 @@ import PageShell from "@/components/PageShell";
 import BottomNav from "@/components/BottomNav";
 import Header from "@/components/Header";
 import Card from "@/components/Card";
+import CareNavigationExtractor from "@/components/CareNavigationExtractor";
 import { documentTypes, documents as seedDocuments } from "@/lib/mockData";
+import { DEMO_APPOINTMENT_LABEL } from "@/lib/demoCalendar";
 import type { DocumentItem } from "@/lib/types";
 
 const mockDetailsByType: Record<string, Omit<DocumentItem, "id" | "type">> = {
   "Appointment slip": {
     title: "Oncology appointment",
-    date: "24 Sept",
+    date: DEMO_APPOINTMENT_LABEL,
     location: "Oncology OPD",
     action: "Attend appointment",
     preparation: "Carry requested documents",
   },
   "Hospital instruction": {
     title: "Pre-visit instruction",
-    date: "24 Sept",
+    date: DEMO_APPOINTMENT_LABEL,
     location: "Sunrise Cancer Institute",
     action: "Follow preparation steps before your visit",
     preparation: "Arrive 30 minutes early with your ID",
   },
   "Referral document": {
     title: "Specialist referral",
-    date: "24 Sept",
+    date: DEMO_APPOINTMENT_LABEL,
     location: "Oncology Department",
     action: "Share with the referred department",
     preparation: "Carry the original referral copy",
   },
   "Discharge instruction": {
     title: "Discharge follow-up",
-    date: "24 Sept",
+    date: DEMO_APPOINTMENT_LABEL,
     location: "Sunrise Cancer Institute",
     action: "Schedule the recommended follow-up",
     preparation: "Carry discharge summary to next visit",
@@ -60,10 +62,16 @@ export default function DocumentsPage() {
     <PageShell>
       <Header
         title="Documents & Instructions"
-        subtitle="Add a document or instruction — CareLoop organizes it for you."
+        subtitle="Turn appointment instructions into a plan you can review and share."
         backHref="/home"
       />
 
+      <CareNavigationExtractor />
+
+      <p className="mb-1 text-sm font-bold text-care-text">Simulated demo documents</p>
+      <p className="mb-3 text-xs text-care-muted">
+        These buttons add pre-written demo entries. No AI is involved.
+      </p>
       <div className="mb-6 grid grid-cols-2 gap-2.5">
         {documentTypes.map((type) => (
           <button
@@ -78,14 +86,14 @@ export default function DocumentsPage() {
       </div>
 
       <p className="mb-3 text-sm font-bold text-care-text">
-        Organized into your journey
+        Fictional document previews
       </p>
       <div className="space-y-3">
         {docs.map((doc) => (
           <Card key={doc.id} className={doc.id === justAdded ? "animate-in ring-1 ring-care-green/40" : ""}>
             {doc.id === justAdded && (
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-care-green">
-                <FileCheck2 size={14} /> CareLoop organized this into your journey.
+                <FileCheck2 size={14} /> Fictional document added to this preview.
               </p>
             )}
             <p className="text-[11px] font-bold uppercase tracking-wide text-care-teal">

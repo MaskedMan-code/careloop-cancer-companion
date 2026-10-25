@@ -1,64 +1,27 @@
-import { ChevronDown, HeartHandshake, Sparkles, User, Users } from "lucide-react";
+"use client";
+
 import PageShell from "@/components/PageShell";
 import Header from "@/components/Header";
 import Card from "@/components/Card";
-import { PrimaryButton } from "@/components/Buttons";
-import { journeyEventsShared } from "@/lib/mockData";
-
-const nodes = [
-  { label: "Patient", icon: User, color: "bg-care-dark" },
-  { label: "AI Companion", icon: Sparkles, color: "bg-care-green" },
-  { label: "Human Companion", icon: HeartHandshake, color: "bg-care-mint" },
-  { label: "Caregiver", icon: Users, color: "bg-care-teal" },
-];
+import TaskChecklist from "@/components/TaskChecklist";
+import AppointmentCard from "@/components/AppointmentCard";
+import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
+import { useDemo, findCompanion } from "@/lib/DemoContext";
 
 export default function SharedJourneyPage() {
-  return (
-    <PageShell withBottomPadding={false}>
-      <Header
-        title="One shared journey"
-        subtitle="Everyone sees the same journey, with consent."
-        backHref="/consent"
-      />
-
-      <div className="mb-3 grid grid-cols-4 gap-2">
-        {nodes.map(({ label, icon: Icon, color }) => (
-          <div key={label} className="flex flex-col items-center gap-1.5 text-center">
-            <span className={`flex h-11 w-11 items-center justify-center rounded-full text-white ${color}`}>
-              <Icon size={18} />
-            </span>
-            <span className="text-[10.5px] font-medium text-care-muted">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="mb-3 flex justify-center">
-        <ChevronDown size={18} className="text-care-muted" />
-      </div>
-
-      <div className="mb-5 rounded-xl bg-care-teal py-3 text-center font-serif text-base font-bold text-white">
-        CareLoop Journey
-      </div>
-
-      <Card className="mb-5">
-        <p className="mb-3 text-sm font-bold text-care-text">Latest updates</p>
-        <ul className="space-y-3">
-          {journeyEventsShared.map((e) => (
-            <li key={e.id} className="flex items-center justify-between text-sm">
-              <span className="text-care-text">{e.label}</span>
-              <span className="text-xs text-care-muted">{e.timestamp}</span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      <div className="rounded-xl bg-care-dark px-4 py-4 text-center font-serif text-lg italic text-white">
-        Nothing is repeated or lost.
-      </div>
-
-      <div className="mt-5">
-        <PrimaryButton href="/companion-session">Open companion session</PrimaryButton>
-      </div>
-    </PageShell>
-  );
+  const { consent, consentGiven, selectedCompanionId, tasks } = useDemo();
+  const companion = findCompanion(selectedCompanionId);
+  const active = consentGiven && !!companion;
+  const shared = active && consent.navigationTasks ? tasks.filter((task) => task.sharedWithCaregiver) : [];
+  return <PageShell withBottomPadding={false}>
+    <Header title="One shared journey" subtitle="A local preview of the information you chose to share." backHref="/consent" />
+    {active ? <>
+      <Card className="mb-5"><p className="font-semibold">Patient consent recorded</p><p className="mt-2 text-sm text-care-muted">{companion.name} · fictional companion. No booking or real sharing has occurred.</p></Card>
+      {consent.appointmentDetails ? <AppointmentCard /> : <p className="mb-5 text-care-muted">Appointment details are not shared.</p>}
+      <h2 className="mb-3 font-serif text-xl font-bold">Selected preparation tasks</h2>
+      {shared.length ? <TaskChecklist tasks={shared} /> : <Card>No tasks included in this sharing scope.</Card>}
+      <div className="mt-5"><PrimaryButton href="/companion-session">Open companion session</PrimaryButton></div>
+    </> : <Card><p className="font-semibold">Sharing is off</p><p className="mt-2 text-sm text-care-muted">Grant companion consent to preview a shared journey.</p></Card>}
+    <div className="mt-4"><SecondaryButton href="/consent">Manage companion consent</SecondaryButton></div>
+  </PageShell>;
 }

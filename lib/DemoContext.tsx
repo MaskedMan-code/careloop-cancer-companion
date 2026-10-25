@@ -1,135 +1,67 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
-import {
-  caregiverTasks as caregiverTasksSeed,
-  companions,
-  todayTasks as todayTasksSeed,
-} from "./mockData";
-import type { ConsentScope, Task } from "./types";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { companions } from "./mockData";
+import type { ConfirmedTaskInput, ConsentScope, Task } from "./types";
+import { initialDemoState, mergeConfirmedTasks, reduceDemo, restoreDemoState, sharedCaregiverTasks, STORAGE_KEY, type AppointmentFacts, type Role, type StoredDemoState } from "./demoState";
+export type { Role } from "./demoState";
 
-export type Role = "patient" | "caregiver" | "companion" | null;
+function useDemoValue() {
+  const [state, setState] = useState(initialDemoState);
+  const stateRef = useRef(state);
+  const [ready, setReady] = useState(false);
+  const [storageAvailable, setStorageAvailable] = useState(true);
+  const replace = useCallback((next: StoredDemoState) => { stateRef.current = next; setState(next); }, []);
+  const change = (fn: (s: StoredDemoState) => StoredDemoState) => replace(fn(stateRef.current));
 
-interface DemoState {
-  role: Role;
-  setRole: (r: Role) => void;
+  useEffect(() => {
+    try { replace(restoreDemoState(localStorage.getItem(STORAGE_KEY))); }
+    catch { setStorageAvailable(false); }
+    setReady(true);
+  }, [replace]);
+  useEffect(() => {
+    if (!ready) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch { setStorageAvailable(false); }
+  }, [state, ready]);
 
-  tasks: Task[];
-  toggleTask: (id: string) => void;
-
-  caregiverTasks: Task[];
-  toggleCaregiverTask: (id: string) => void;
-
-  caregiverNotified: boolean;
-  notifyCaregiver: () => void;
-
-  selectedCompanionType: string | null;
-  setSelectedCompanionType: (t: string | null) => void;
-
-  selectedCompanionId: string | null;
-  setSelectedCompanionId: (id: string | null) => void;
-
-  consent: ConsentScope;
-  setConsent: (c: ConsentScope) => void;
-  consentGiven: boolean;
-  giveConsent: () => void;
-
-  humanCompanionAdded: boolean;
-
-  companionSessionStep: number;
-  advanceCompanionSession: () => void;
+  const now = () => new Date().toISOString();
+  const toggleTask = (id: string) => change((s) => reduceDemo(s, { type: "toggleTask", id, now: now() }));
+  return {
+    ...state, ready, storageAvailable,
+    setRole: (role: Role) => change((s) => ({ ...s, role })),
+    toggleTask,
+    updateTask: (id: string, patch: Partial<Pick<Task, "assignedTo" | "sharedWithCaregiver">>) => change((s) => reduceDemo(s, { type: "updateTask", id, patch, now: now() })),
+    addConfirmedTasks: (items: ConfirmedTaskInput[]) => {
+      const result = mergeConfirmedTasks(stateRef.current.tasks, items, now(), () => `task-${crypto.randomUUID()}`);
+      change((s) => ({ ...s, tasks: result.tasks }));
+      return { added: result.added, skipped: result.skipped };
+    },
+    confirmAppointment: (facts: AppointmentFacts) => change((s) => ({ ...s, confirmedAppointment: facts })),
+    caregiverTasks: sharedCaregiverTasks(state),
+    toggleCaregiverTask: (id: string) => change((s) => reduceDemo(s, { type: "toggleTask", id, now: now(), caregiver: true })),
+    notifyCaregiver: () => change((s) => ({ ...s, caregiverNotified: s.caregiverSharing.granted })),
+    setCaregiverSharing: (patch: Partial<StoredDemoState["caregiverSharing"]>) => change((s) => ({ ...s, caregiverSharing: { ...s.caregiverSharing, ...patch } })),
+    revokeCaregiver: () => change((s) => reduceDemo(s, { type: "revokeCaregiver" })),
+    setSelectedCompanionType: (type: string | null) => change((s) => ({ ...s, selectedCompanionType: ["hospital", "navigator", "family", "eol"].includes(type ?? "") ? type as StoredDemoState["selectedCompanionType"] : null })),
+    setSelectedCompanionId: (id: string | null) => change((s) => ({ ...s, selectedCompanionId: companions.some((c) => c.id === id) ? id as StoredDemoState["selectedCompanionId"] : null })),
+    setConsent: (consent: ConsentScope) => change((s) => reduceDemo(s, { type: "setConsent", consent })),
+    giveConsent: () => change((s) => ({ ...s, consentGiven: s.selectedCompanionId !== null })),
+    revokeCompanion: () => change((s) => reduceDemo(s, { type: "revokeCompanion" })),
+    humanCompanionAdded: state.consentGiven && state.selectedCompanionId !== null,
+    advanceCompanionSession: () => change((s) => reduceDemo(s, { type: "advanceSession" })),
+    resetDemo: () => { try { localStorage.removeItem(STORAGE_KEY); } catch { setStorageAvailable(false); } replace(initialDemoState()); },
+  };
 }
-
-const DemoContext = createContext<DemoState | undefined>(undefined);
-
+const DemoContext = createContext<ReturnType<typeof useDemoValue> | undefined>(undefined);
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState<Role>(null);
-  const [tasks, setTasks] = useState<Task[]>(todayTasksSeed);
-  const [caregiverTasksState, setCaregiverTasksState] = useState<Task[]>(
-    caregiverTasksSeed
-  );
-  const [caregiverNotified, setCaregiverNotified] = useState(false);
-  const [selectedCompanionType, setSelectedCompanionType] = useState<
-    string | null
-  >(null);
-  const [selectedCompanionId, setSelectedCompanionId] = useState<
-    string | null
-  >(null);
-  const [consent, setConsent] = useState<ConsentScope>({
-    appointmentDetails: true,
-    navigationTasks: true,
-    otherDocuments: false,
-  });
-  const [consentGiven, setConsentGiven] = useState(false);
-  const [companionSessionStep, setCompanionSessionStep] = useState(0);
-
-  const toggleTask = (id: string) =>
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
-
-  const toggleCaregiverTask = (id: string) =>
-    setCaregiverTasksState((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
-
-  const notifyCaregiver = () => setCaregiverNotified(true);
-
-  const giveConsent = () => setConsentGiven(true);
-
-  const advanceCompanionSession = () =>
-    setCompanionSessionStep((s) => Math.min(s + 1, 4));
-
-  const value = useMemo(
-    () => ({
-      role,
-      setRole,
-      tasks,
-      toggleTask,
-      caregiverTasks: caregiverTasksState,
-      toggleCaregiverTask,
-      caregiverNotified,
-      notifyCaregiver,
-      selectedCompanionType,
-      setSelectedCompanionType,
-      selectedCompanionId,
-      setSelectedCompanionId,
-      consent,
-      setConsent,
-      consentGiven,
-      giveConsent,
-      humanCompanionAdded: consentGiven,
-      companionSessionStep,
-      advanceCompanionSession,
-    }),
-    [
-      role,
-      tasks,
-      caregiverTasksState,
-      caregiverNotified,
-      selectedCompanionType,
-      selectedCompanionId,
-      consent,
-      consentGiven,
-      companionSessionStep,
-    ]
-  );
-
+  const value = useDemoValue();
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
 }
-
 export function useDemo() {
   const ctx = useContext(DemoContext);
   if (!ctx) throw new Error("useDemo must be used within DemoProvider");
   return ctx;
 }
-
-export function findCompanion(id: string | null) {
-  if (!id) return undefined;
-  return companions.find((c) => c.id === id);
-}
-
-export function companionsByType(type: string | null) {
-  if (!type) return companions;
-  return companions.filter((c) => c.type === type);
-}
+export function findCompanion(id: string | null) { return companions.find((c) => c.id === id); }
+export function companionsByType(type: string | null) { return type ? companions.filter((c) => c.type === type) : companions; }
