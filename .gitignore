@@ -25,3 +25,19 @@ coverage
 *.log
 careloop-phase2-fixed.zip
 playwright-report
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build files
+node_modules/
+.next/
+.vercel/
+coverage/
+playwright-report/
+test-results/
+*.zip
