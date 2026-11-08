@@ -20,21 +20,21 @@ Implemented in the existing Next.js 15 / React 18 / TypeScript application:
 - Source appointment facts require their own checkbox during confirmation. They retain the actual extracted date/text; unknown fields remain unknown. Seeded milestones and seed tasks remain explicitly fictional examples, even when a source appointment differs. Unstructured source dates are not automatically converted to ISO dates or given potentially misleading relative labels.
 - A wider responsive layout, clear task states, prominent preparation actions, source quotations, success/error states, accessible controls, reduced-motion support, browser-storage feedback, and print/save-to-PDF action.
 - Hospital Companion, Cancer Care Navigator, Family / Practical Support and **End-of-Life Companion / Death Doula** remain available. Fictional profiles and availability no longer claim real verification. Companion sessions retain their consent flow and persist progress.
-- Public AI requests require a private judge code and an atomic Redis quota. Missing/misconfigured protection or unavailable Redis fails closed.
+- Public AI requests require no judge code. An atomic shared Redis quota caps paid calls; missing or unavailable Redis fails closed.
 
 See [implementation files and validation notes](docs/phase2-delivery.md) for the exact change list and test results.
 
 ## What remains simulated or limited
 
 - This is a **single-browser fictional prototype**. Local consent filters are a UI demonstration, not secure patient-data access control. There is no identity verification, secure backend, account system, cross-device sync, multi-user synchronization, notifications or messaging.
-- Confirmed task wording, source quotations, appointment facts and preferences are stored unencrypted in that browser. Raw pasted input, unconfirmed proposals and the judge code are not persisted. Never enter real patient information. Reset Demo removes modified demo progress.
+- Confirmed task wording, source quotations, appointment facts and preferences are stored unencrypted in that browser. Raw pasted input and unconfirmed proposals are not persisted. Never enter real patient information. Reset Demo removes modified demo progress.
 - AI Companion chat is explicitly **scripted demo chat**. It reports current local task counts but makes no model calls. The genuine AI feature is Documents → Find my tasks.
 - Simulated document buttons add prewritten screen-local previews only. They do not extract tasks, change milestones or persist on reload.
 - Human profiles, requests, availability, consent, sessions and after-support activity are fictional. There are no real bookings, service-provider checks, hospital integrations or payments.
 - Clinical guards are conservative English/Hindi text rules, not clinical safety validation. They may over-filter or miss paraphrases and have not had clinician review. CareLoop never infers missing appointments or medical instructions.
 - Text submitted for extraction goes to Sarvam, a third party. No patient-data governance, retention contract, compliance assessment or production security audit is provided.
 - Live Sarvam calls and a real Upstash deployment were **not exercised in this sprint**. Offline tests mock provider/quota responses; browser happy paths intercept the API. Real extraction quality, credits, deployed quota execution and Vercel configuration require an approved live check. Do not describe the public deployment as security-verified.
-- One shared judge code is a simple paid-demo gate, not per-user authentication. All judges share the budget. Anyone with the code can consume that budget; rotate it if disclosed. There is no per-person audit trail.
+- AI extraction is publicly accessible without login; all visitors share one bounded request budget. A visitor could exhaust that budget. There is no per-person authentication or audit trail.
 - Browser tests use installed Chrome at 390×844 and 1440×1000. Other browsers, real devices, screen readers and formal accessibility audits are not verified.
 
 ## Run locally
@@ -62,12 +62,11 @@ All variables below are **server-only**. Never use a `NEXT_PUBLIC_` prefix for t
 | `SARVAM_API_KEY` | Sarvam subscription key; required for real extraction. |
 | `SARVAM_MODEL` | Optional; default `sarvam-105b`; also allows `sarvam-105b-conversations`. |
 | `CARELOOP_LOCAL_DEMO` | Set to `1` only for explicit loopback development. Ignored when `VERCEL` is set and on non-loopback request URLs. Never enable on a public self-hosted server. |
-| `CARELOOP_DEMO_ACCESS_CODE` | Required for public/preview AI access: generate a random 32–256-character code, store server-side, and privately give it to judges. No public default exists. |
 | `UPSTASH_REDIS_REST_URL` | Public mode requires an HTTPS Upstash Redis REST URL such as the placeholder `https://your-database.upstash.io`. |
 | `UPSTASH_REDIS_REST_TOKEN` | Public mode requires its read/write Redis REST token; never give this to judges. |
 | `CARELOOP_AI_DAILY_LIMIT` | Optional; default 100 aggregate accepted attempts per UTC day; integer 1–1000. |
 
-The judge types their code into the masked Documents field. It travels in `X-CareLoop-Access-Code` and stays only in screen memory. Code comparison uses SHA-256 digests and constant-time comparison. Public requests with a missing/incorrect code return 401; missing/weak access configuration or failed quota protection returns 503. The UI shows AI unavailable, without fabricated extraction.
+Public AI requests do not use a judge code or access-code header. A valid Upstash quota configuration is mandatory; missing or unavailable Redis returns 503 without any Sarvam call. The UI never fabricates extraction results.
 
 ## Public AI protection and required infrastructure
 
@@ -78,11 +77,11 @@ One EVAL checks/increments **both** shared counters atomically before any Sarvam
 - 10 accepted attempts in a 60-second window starting at its first hit.
 - The configured aggregate daily budget, keyed by UTC calendar day.
 
-All serverless instances and judges share `careloop:{ai}:minute` and `careloop:{ai}:day:YYYY-MM-DD`. These keys contain no source text, code or IP address. Rotating the judge code does not reset quotas. Use one dedicated database for the intended shared budget; environments pointing to the same database intentionally share it. Do not manually clear keys to bypass budget enforcement.
+All serverless instances and judges share `careloop:{ai}:minute` and `careloop:{ai}:day:YYYY-MM-DD`. These keys contain no source text or IP address. There is no judge code; visitors share the same limits. Use one dedicated database for the intended shared budget; environments pointing to the same database intentionally share it. Do not manually clear keys to bypass budget enforcement.
 
-Requests consume quota even if Sarvam later fails or a deterministic safety check handles the text. Failed authorization/validation does not consume paid-request quota. Minute-key TTL is 60 seconds; daily keys expire after 48 hours. Redis errors, invalid responses and a 3-second timeout fail closed. Local bypass uses only an in-process courtesy limiter and is not a public security control.
+Requests consume quota even if Sarvam later fails or a deterministic safety check handles the text. Rejected cross-origin or invalid input does not consume the quota. Minute-key TTL is 60 seconds; daily keys expire after 48 hours. Redis errors, invalid responses and a 3-second timeout fail closed. Local bypass uses only an in-process courtesy limiter and is not a public security control.
 
-The route rejects unexpected request structure, empty or >4,000-character input, non-JSON and cross-origin browser submissions. Streaming body reads are capped at 25,000 bytes and 5 seconds. Sarvam output is capped at 2,500 tokens; its 45-second timeout includes response-body parsing. Route `maxDuration` is 60 seconds. Use a Vercel plan/function configuration that supports that duration. No permissive CORS is provided; authentication is still mandatory for non-browser requests.
+The route rejects unexpected request structure, empty or >4,000-character input, non-JSON and cross-origin browser submissions. Streaming body reads are capped at 25,000 bytes and 5 seconds. Sarvam output is capped at 2,500 tokens; its 45-second timeout includes response-body parsing. Route `maxDuration` is 60 seconds. Use a Vercel plan/function configuration that supports that duration. No permissive CORS is provided, but non-browser clients can still call the public endpoint; the shared Redis quota limits paid usage.
 
 ## Test and build
 
@@ -105,7 +104,7 @@ The paid live suite remains separate: `test:live` requires `RUN_LIVE_TESTS=1` an
 ## Judge demonstration
 
 1. Open Home → Read my appointment text → use a fictional English/Hindi sample.
-2. On a public deployment, enter the private judge code. Select Find my tasks for a genuine Sarvam request.
+2. Select Find my tasks for a genuine Sarvam request. No login or judge code is needed; public quotas still apply.
 3. Review stated facts, optional suggestions and missing information. Edit task wording/due wording/assignee, untick or remove unwanted proposals.
 4. Optionally check Use these source appointment details. Confirm selected tasks. Nothing becomes complete automatically.
 5. Open What's Next and Journey. Review original quotations and responsibilities; seeded milestones remain separate.
@@ -128,8 +127,8 @@ This supplied folder has **no `.git` repository**, so no working branch could be
 ## Update the existing Vercel project (operator action)
 
 1. Open the **existing** Vercel project. Keep its linked repository and root directory; do not create another application/project.
-2. Set the server variables above for the intended Preview/Production environments. Provision Redis and privately distribute a newly generated judge code. Do not set `CARELOOP_LOCAL_DEMO=1` for public use. Do not paste any secret into this chat.
-3. Deploy the approved branch to Preview through the existing project. Verify missing/wrong-code rejection, quota failure behavior and the UI before granting paid test approval.
+2. Set the server variables above for the intended Preview/Production environments. Provision Redis and confirm shared request quotas. Do not set `CARELOOP_LOCAL_DEMO=1` for public use. Do not paste any secret into this chat.
+3. Deploy the approved branch to Preview through the existing project. Verify anonymous access, quota exhaustion/failure behavior and the UI before granting paid test approval.
 4. With explicit approval for a small number of paid calls, test genuine English and Hindi extraction on fictional text, then the full confirmation/sharing/reload/companion flow. Verify Redis counters and limit enforcement in that environment. Mocked tests do not establish deployed security.
 5. Only after approval, merge/promote using the existing project's deployment workflow. Environment changes require a new deployment. Keep the previous deployment available for rollback.
 

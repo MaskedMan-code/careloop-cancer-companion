@@ -51,7 +51,6 @@ export default function CareNavigationExtractor() {
   const [text, setText] = useState("");
   const [view, setView] = useState<View>({ kind: "idle" });
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [accessCode, setAccessCode] = useState("");
   const [includeAppointment, setIncludeAppointment] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -68,7 +67,7 @@ export default function CareNavigationExtractor() {
     try {
       const res = await fetch("/api/care-navigation", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(accessCode ? { "X-CareLoop-Access-Code": accessCode } : {}) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
         signal: controller.signal,
       });
@@ -177,9 +176,6 @@ export default function CareNavigationExtractor() {
               </button>
             </span>
           </div>
-          <label htmlFor="judge-code" className="mb-1 block text-sm font-semibold">Judge access code</label>
-          <input id="judge-code" type="password" autoComplete="off" maxLength={256} value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="mb-1 min-h-12 w-full rounded-xl border border-care-border bg-white px-3" />
-          <p className="mb-3 text-xs text-care-muted">Required for the public demo. Ask the demo organizer for access. Kept only in memory while this screen is open; leave empty for an explicitly enabled local demo.</p>
           <PrimaryButton onClick={extract} disabled={!canSubmit} icon={view.kind === "loading" ? <Loader2 size={16} className="animate-spin" /> : undefined}>
             {view.kind === "loading" ? "Reading your text…" : "Find my tasks"}
           </PrimaryButton>

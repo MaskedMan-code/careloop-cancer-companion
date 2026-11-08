@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { CareNavError } from "./errors";
 import { checkRateLimit } from "./rateLimit";
 
@@ -20,14 +19,9 @@ function localBypass(req: Request, env: Env) {
   return env.CARELOOP_LOCAL_DEMO === "1" && !env.VERCEL && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
 }
 
+// Anonymous public demo. Shared Redis quotas remain mandatory to protect AI credits.
 export function authorizeDemo(req: Request, env: Env): "local" | "public" {
-  if (localBypass(req, env)) return "local";
-  const expected = env.CARELOOP_DEMO_ACCESS_CODE ?? "";
-  if (expected.length < 32 || expected.length > 256) throw new CareNavError("DEMO_PROTECTION_UNAVAILABLE", 503);
-  const code = req.headers.get("x-careloop-access-code") ?? "";
-  const digest = (s: string) => createHash("sha256").update(s).digest();
-  if (code.length > 256 || !timingSafeEqual(digest(code), digest(expected))) throw new CareNavError("DEMO_UNAUTHORIZED", 401);
-  return "public";
+  return localBypass(req, env) ? "local" : "public";
 }
 
 export async function consumeDemoQuota(req: Request, env: Env, mode: "local" | "public", fetchImpl: typeof fetch = fetch, now = new Date()) {
@@ -39,19 +33,35 @@ export async function consumeDemoQuota(req: Request, env: Env, mode: "local" | "
   const url = env.UPSTASH_REDIS_REST_URL;
   const token = env.UPSTASH_REDIS_REST_TOKEN;
   const daily = Number(env.CARELOOP_AI_DAILY_LIMIT ?? "100");
-  if (!url || !/^https:\/\/[a-z0-9-]+\.upstash\.io\/?$/i.test(url) || !token || !Number.isInteger(daily) || daily < 1 || daily > 1000) throw new CareNavError("DEMO_PROTECTION_UNAVAILABLE", 503);
+  // Safe diagnostics only: never log secrets, user input or request headers.
+  const configError = !url ? "redis_url_missing"
+    : !/^https:\/\/[a-z0-9-]+\.upstash\.io\/?$/i.test(url) ? "redis_url_invalid"
+    : !token ? "redis_token_missing"
+    : !Number.isInteger(daily) || daily < 1 || daily > 1000 ? "daily_limit_invalid"
+    : null;
+  if (configError) {
+    console.error("[CareLoop quota] " + configError);
+    throw new CareNavError("DEMO_PROTECTION_UNAVAILABLE", 503);
+  }
   const controller = new AbortController();
+  // Explicit guard lets TypeScript narrow Redis settings before fetch.
+  // The earlier config validation already emits non-secret diagnostics.
+  if (!url || !token) throw new CareNavError("DEMO_PROTECTION_UNAVAILABLE", 503);
   const timer = setTimeout(() => controller.abort(), 3000);
   try {
     const res = await fetchImpl(url, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(["EVAL", QUOTA_SCRIPT, 2, "careloop:{ai}:minute", `careloop:{ai}:day:${now.toISOString().slice(0, 10)}`, 10, daily]),
       signal: controller.signal, cache: "no-store" });
-    if (!res.ok) throw new Error("quota service");
+    if (!res.ok) {
+      console.error("[CareLoop quota] redis_http_" + res.status);
+      throw new Error("quota service");
+    }
     const data: unknown = await res.json();
     if (!data || typeof data !== "object" || !("result" in data) || ("error" in data && data.error) || ![0, 1].includes(data.result as number)) throw new Error("quota response");
     if (data.result === 0) throw new CareNavError("RATE_LIMITED", 429);
   } catch (err) {
     if (err instanceof CareNavError) throw err;
+    console.error("[CareLoop quota] redis_request_or_response_failed");
     throw new CareNavError("DEMO_PROTECTION_UNAVAILABLE", 503);
   } finally { clearTimeout(timer); }
 }

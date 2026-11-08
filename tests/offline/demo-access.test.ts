@@ -5,25 +5,21 @@ import { resetRateLimit } from "@/lib/care-navigation/rateLimit";
 import { CASES } from "../fixtures/care-navigation-cases";
 import { makeFetch, TEST_KEY } from "../helpers/harness";
 
-const code = "fictional-test-access-token-32-characters";
-const env = { CARELOOP_DEMO_ACCESS_CODE: code, UPSTASH_REDIS_REST_URL: "https://fictional.upstash.io", UPSTASH_REDIS_REST_TOKEN: "test-redis-token", CARELOOP_AI_DAILY_LIMIT: "2" };
-function request(access = code, extra: Record<string, string> = {}) { return new Request("https://careloop.example/api/care-navigation", { method: "POST", headers: { "content-type": "application/json", "x-careloop-access-code": access, ...extra }, body: JSON.stringify({ text: "Bring appointment slip" }) }); }
+const env = { UPSTASH_REDIS_REST_URL: "https://fictional.upstash.io", UPSTASH_REDIS_REST_TOKEN: "test-redis-token", CARELOOP_AI_DAILY_LIMIT: "2" };
+function request(extra: Record<string, string> = {}) { return new Request("https://careloop.example/api/care-navigation", { method: "POST", headers: { "content-type": "application/json", ...extra }, body: JSON.stringify({ text: "Bring appointment slip" }) }); }
 beforeEach(() => { for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value); vi.stubEnv("CARELOOP_LOCAL_DEMO", ""); vi.stubEnv("VERCEL", "1"); vi.stubEnv("SARVAM_API_KEY", TEST_KEY); resetRateLimit(); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-describe("public judge access and durable quotas", () => {
-  it("rejects missing/wrong codes before any quota or provider request", async () => {
-    const fetchSpy = vi.fn(); vi.stubGlobal("fetch", fetchSpy);
-    for (const access of ["", "wrong", "x".repeat(257)]) { const res = await POST(request(access)); expect(res.status).toBe(401); expect((await res.json()).error.code).toBe("DEMO_UNAUTHORIZED"); }
-    expect(fetchSpy).not.toHaveBeenCalled();
+describe("anonymous public demo and durable quotas", () => {
+  it("does not require a judge code in public mode", () => {
+    expect(authorizeDemo(request(), env)).toBe("public");
+    expect(authorizeDemo(request({ "x-careloop-access-code": "old-code-ignored" }), env)).toBe("public");
+    expect(authorizeDemo(request(), { ...env, CARELOOP_DEMO_ACCESS_CODE: "short" })).toBe("public");
   });
-  it("fails closed for missing or weak public access configuration", async () => {
-    for (const value of ["", "weak"]) { vi.stubEnv("CARELOOP_DEMO_ACCESS_CODE", value); expect((await POST(request())).status).toBe(503); }
-  });
-  it("ignores local bypass on Vercel and non-loopback origins", () => {
-    expect(() => authorizeDemo(request(""), { ...env, CARELOOP_LOCAL_DEMO: "1" })).toThrow();
+  it("limits local bypass to explicit loopback development", () => {
+    expect(authorizeDemo(request(), { ...env, CARELOOP_LOCAL_DEMO: "1" })).toBe("public");
     const local = new Request("http://localhost/api/care-navigation");
-    expect(() => authorizeDemo(local, { ...env, VERCEL: "1", CARELOOP_LOCAL_DEMO: "1" })).toThrow();
+    expect(authorizeDemo(local, { ...env, VERCEL: "1", CARELOOP_LOCAL_DEMO: "1" })).toBe("public");
     expect(authorizeDemo(local, { CARELOOP_LOCAL_DEMO: "1" })).toBe("local");
   });
   it("fails closed without quota credentials, invalid limits, and on quota network/protocol errors", async () => {
@@ -41,7 +37,7 @@ describe("public judge access and durable quotas", () => {
     const command = JSON.parse(init.body);
     expect(command).toEqual(["EVAL", QUOTA_SCRIPT, 2, "careloop:{ai}:minute", "careloop:{ai}:day:2026-10-25", 10, 2]);
     expect(QUOTA_SCRIPT).toMatch(/minute >=/); expect(QUOTA_SCRIPT).toMatch(/daily >=/); expect(QUOTA_SCRIPT).toMatch(/EXPIRE/);
-    expect(init.body).not.toContain(code); expect(init.body).not.toContain("appointment slip");
+    expect(init.body).not.toContain("x-careloop-access-code"); expect(init.body).not.toContain("appointment slip");
   });
   it("stops provider calls on exhausted quota (shared across requests/instances)", async () => {
     const impl = vi.fn().mockResolvedValue(Response.json({ result: 0 })); vi.stubGlobal("fetch", impl);
@@ -49,15 +45,15 @@ describe("public judge access and durable quotas", () => {
     expect(impl).toHaveBeenCalledTimes(1);
     expect(String(impl.mock.calls[0][0])).toContain("upstash.io");
   });
-  it("passes authorized requests through quota to the unchanged Sarvam extraction pipeline", async () => {
+  it("passes anonymous requests through quota to the unchanged Sarvam extraction pipeline", async () => {
     const provider = makeFetch(CASES.find((c) => c.id === "clear-appointment-en")!.mock);
     vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => String(url).includes("upstash.io") ? Response.json({ result: 1 }) : provider.impl(url, init)));
     const req = new Request(request().url, { method: "POST", headers: request().headers, body: JSON.stringify({ text: CASES.find((c) => c.id === "clear-appointment-en")!.input }) });
     const res = await POST(req); expect(res.status).toBe(200); expect((await res.json()).source).toBe("sarvam-live"); expect(provider.calls).toHaveLength(1);
   });
   it("rejects cross-origin browser submissions and non-JSON requests", async () => {
-    expect((await POST(request(code, { origin: "https://untrusted.example" }))).status).toBe(401);
-    expect((await POST(request(code, { "content-type": "text/plain" }))).status).toBe(400);
+    expect((await POST(request({ origin: "https://untrusted.example" }))).status).toBe(401);
+    expect((await POST(request({ "content-type": "text/plain" }))).status).toBe(400);
   });
   it("accepts a same-host browser origin even when Next uses an internal request hostname", async () => {
     vi.stubEnv("CARELOOP_LOCAL_DEMO", "1"); vi.stubEnv("VERCEL", ""); vi.stubEnv("SARVAM_API_KEY", "");

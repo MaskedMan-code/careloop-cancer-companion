@@ -15,8 +15,8 @@ export const USER_MESSAGES: Record<ApiErrorCode, string> = {
   INVALID_INPUT: "Please paste some text to organize.",
   INPUT_TOO_LARGE: "That text is too long. Please paste a shorter excerpt.",
   RATE_LIMITED: "The demo request quota has been reached. Try again in a minute; if the daily budget is used, contact the demo organizer or return tomorrow.",
-  DEMO_UNAUTHORIZED: "Enter the judge access code provided by the demo organizer, then try again.",
-  DEMO_PROTECTION_UNAVAILABLE: "Public-demo access protection or quota storage is unavailable. AI requests are disabled. Please contact the demo organizer.",
+  DEMO_UNAUTHORIZED: "This request was blocked because it did not come from the CareLoop website.",
+  DEMO_PROTECTION_UNAVAILABLE: "Public-demo request quota protection is unavailable. AI requests are disabled. Please contact the demo organizer.",
   AI_NOT_CONFIGURED:
     "The AI service isn't set up on this server, so CareLoop can't read your text right now. Please try again later.",
   AI_TIMEOUT: "The AI service took too long to respond. Please try again.",

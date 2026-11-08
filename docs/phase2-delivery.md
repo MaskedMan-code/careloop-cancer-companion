@@ -1,3 +1,5 @@
+> **Update (8 November 2026):** The public-demo judge-code gate has been removed to allow frictionless evaluation. The current code still requires an atomic Upstash Redis quota and a server-side Sarvam key, and fails closed when quota storage is unavailable. The material below documents the historical 25 October Build Sprint implementation and tests; it is not validation of this new change.
+
 # CareLoop Phase 2 delivery — 25 October 2026
 
 ## Implemented
